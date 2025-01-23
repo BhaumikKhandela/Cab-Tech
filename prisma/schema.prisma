@@ -12,3 +12,51 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+
+model User {
+  id String @id @default(uuid())
+  name String
+  email String
+  phoneNumber String
+  OlaAccessToken String
+  UberAccessToken String
+  rides Rides[]
+}
+
+model Rides {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  rideProvider RideProvider
+  rideType RideType
+  vechileSelected String
+  rideId String 
+  pickupLocation String
+  dropLocation String
+  platform String
+  fare Int
+  dateAndTime DateTime
+  rideStatus RideStatus @default(Upcoming)
+}
+
+enum RideStatus{
+  Upcoming
+  Completed 
+  Cancelled
+}
+
+enum RideProvider{
+  OLA
+  UBER
+  RAPIDO
+  BLABLACAR
+  MERUCABS
+}
+
+enum RideType{
+  Local
+  Outstation
+  Airport
+  Rental
+}
