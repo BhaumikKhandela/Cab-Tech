@@ -19,8 +19,8 @@ model User {
   name String
   email String
   phoneNumber String
-  OlaAccessToken String
-  UberAccessToken String
+  OlaAccessToken String @default("")
+  UberAccessToken String @default("")
   rides Rides[]
 }
 

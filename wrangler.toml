@@ -7,7 +7,10 @@ compatibility_date = "2025-01-23"
 # [vars]
 # MY_VAR = "my-variable"
 
-# [[kv_namespaces]]
+kv_namespaces = [
+  { binding = "<MY_NAMESPACE>", id = "<KV_ID>" }
+]
+
 # binding = "MY_KV_NAMESPACE"
 # id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
