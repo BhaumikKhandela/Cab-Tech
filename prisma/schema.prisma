@@ -18,7 +18,7 @@ model User {
   id String @id @default(uuid())
   name String
   email String
-  phoneNumber String
+  phoneNumber String @unique
   OlaAccessToken String @default("")
   UberAccessToken String @default("")
   rides Rides[]
