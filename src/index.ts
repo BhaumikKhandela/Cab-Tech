@@ -295,7 +295,7 @@ app.patch("/api/v1/unlink-accessToken", AuthMiddleware, async (c) => {
   }
 });
 
-app.post("/api/v1/book-now/local/ola", AuthMiddleware, async (c) => {
+app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
   try {
     const category = c.req.query("category");
     let service_type = c.req.query("service_type");
@@ -331,22 +331,37 @@ app.post("/api/v1/book-now/local/ola", AuthMiddleware, async (c) => {
       }
     );
 
-    const data: OlaResponse = await response.json();
+    const data: OlaResponse | { message: string; code: string } =
+      await response.json();
 
-    const rideDetails: RideDetails = {
-      category: "",
-      eta: 0,
-      fare: 0,
-    };
+    if ("code" in data) {
+      if (data.code === "INVALID_CITY") {
+        return c.json({
+          message: "Ola do not serve in this city",
+        });
+      }
 
-    rideDetails["category"] = data.ride_estimate[0].category;
-    rideDetails["eta"] = data.categories[0].eta;
-    rideDetails["fare"] = data.ride_estimate[0].upfront.fare;
+      if (data.code === "INVALID_CITY_CAR_CATEGORY") {
+        return c.json({
+          message: "No service available for this category in this city",
+        });
+      }
+    } else {
+      const rideDetails: RideDetails = {
+        category: "",
+        eta: 0,
+        fare: 0,
+      };
 
-    return c.json({
-      message: "Ola ride details fetched successfully",
-      data: rideDetails,
-    });
+      rideDetails["category"] = data.ride_estimate[0].category;
+      rideDetails["eta"] = data.categories[0].eta;
+      rideDetails["fare"] = data.ride_estimate[0].upfront.fare;
+
+      return c.json({
+        message: "Ola ride details fetched successfully",
+        data: rideDetails,
+      });
+    }
   } catch (error) {
     console.error("An error occurred while fetching Ola ride details", error);
     return c.json({
@@ -354,5 +369,3 @@ app.post("/api/v1/book-now/local/ola", AuthMiddleware, async (c) => {
     });
   }
 });
-
-export default app;
