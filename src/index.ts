@@ -299,7 +299,8 @@ app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
   try {
     const category = c.req.query("category");
     let service_type = c.req.query("service_type");
-
+    const kv = c.env.kv;
+    const id = c.get("id");
     if (service_type === "local") {
       service_type = "p2p";
     }
@@ -356,6 +357,18 @@ app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
       rideDetails["category"] = data.ride_estimate[0].category;
       rideDetails["eta"] = data.categories[0].eta;
       rideDetails["fare"] = data.ride_estimate[0].upfront.fare;
+
+      const requestBodyDetails = {
+        ...geoLocation.data,
+        category: category,
+        service_type: service_type,
+      };
+      const requestBodyDetailsStringified = JSON.stringify(requestBodyDetails);
+
+      await kv.put(id, requestBodyDetailsStringified, {
+        expirationTtl: 5 * 60,
+        metadata: rideDetails,
+      });
 
       return c.json({
         message: "Ola ride details fetched successfully",
