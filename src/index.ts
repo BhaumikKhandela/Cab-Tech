@@ -58,13 +58,19 @@ const AuthMiddleware = async (c: MyContext, next: Next) => {
     console.error("User not recognized", error);
 
     if (error instanceof JwtTokenExpired) {
-      return c.json({
-        message: "Token has expired",
-      });
+      return c.json(
+        {
+          message: "Token has expired",
+        },
+        401
+      );
     }
-    return c.json({
-      message: "User not recognized",
-    });
+    return c.json(
+      {
+        message: "User not recognized",
+      },
+      403
+    );
   }
 };
 
@@ -81,7 +87,10 @@ app.post("/api/v1/signup", async (c) => {
     try {
       const result = SignUpSchema.safeParse(body);
       if (!result.success) {
-        return c.json({ message: "Invalid signup data", error: result.error });
+        return c.json(
+          { message: "Invalid signup data", error: result.error },
+          400
+        );
       }
 
       const signUpDetails = result.data;
@@ -97,15 +106,31 @@ app.post("/api/v1/signup", async (c) => {
       const otp = generateOtp();
 
       await kv.put(user.id, otp, { expirationTtl: 5 * 60 });
+
+      // returned message
+      return c.json(
+        { message: "User created successfully. OTP sent to your phone." },
+        201
+      );
     } catch (error) {
       console.error("Phone number exists", error);
 
-      return c.json({
-        message: "Can't create the user",
-      });
+      // message updated
+      return c.json(
+        {
+          message: "User with this phone number or email already exists",
+        },
+        409
+      );
     }
   } catch (error) {
     console.error("Connection to Prisma Client failed", error);
+
+    // returned message
+    return c.json(
+      { message: "Internal server error. Please try again later." },
+      500
+    );
   }
 });
 
@@ -124,19 +149,34 @@ app.post("/api/v1/generate-otp", async (c) => {
     });
 
     if (!user) {
-      return c.json({
-        message: "User not found",
-      });
+      return c.json(
+        {
+          message: "User not found",
+        },
+        404
+      );
     }
     const kv = c.env.kv;
 
     const otp = generateOtp();
 
-    await kv.put(user?.id, otp);
+    // expire time added
+    await kv.put(user?.id, otp, { expirationTtl: 5 * 60 });
+
+    // returned message
+    return c.json(
+      {
+        message: "OTP generated successfully and sent to the user.",
+      },
+      200
+    );
   } catch (error) {
-    return c.json({
-      message: "Can't connect to Prisma",
-    });
+    return c.json(
+      {
+        message: "Can't connect to Prisma",
+      },
+      500
+    );
   }
 });
 
@@ -152,10 +192,23 @@ app.post("/api/v1/verify-otp", async (c) => {
 
     const otp = await kv.get(body.id);
 
+    // check if otp is recieved
+    if (!otp) {
+      return c.json(
+        {
+          message: "OTP not found or expired. Please request a new OTP.",
+        },
+        404
+      );
+    }
+
     if (otp !== body.otp) {
-      return c.json({
-        message: "Invalid OTP, please try again",
-      });
+      return c.json(
+        {
+          message: "Invalid OTP, please try again",
+        },
+        401
+      );
     }
 
     const payload = {
@@ -166,15 +219,21 @@ app.post("/api/v1/verify-otp", async (c) => {
 
     const token = await sign(payload, c.env.JWT_SECRET);
 
-    return c.json({
-      message: "Phone number verified",
-      token,
-    });
+    return c.json(
+      {
+        message: "Phone number verified",
+        token,
+      },
+      200
+    );
   } catch (error) {
     console.error("An error occurred while verifying OTP", error);
-    return c.json({
-      message: "An error occurred while verifying otp",
-    });
+    return c.json(
+      {
+        message: "An error occurred while verifying otp",
+      },
+      500
+    );
   }
 });
 
@@ -188,16 +247,22 @@ app.patch("/api/v1/set-accessToken", AuthMiddleware, async (c) => {
     const id = c.get("id");
 
     if (!id) {
-      return c.json({
-        message: "Can't get the id",
-      });
+      return c.json(
+        {
+          message: "Can't get the id",
+        },
+        400
+      );
     }
     const tokenDetails = AccessTokenSchema.safeParse(body);
 
     if (!tokenDetails.success) {
-      return c.json({
-        message: "Invalid body",
-      });
+      return c.json(
+        {
+          message: "Invalid body",
+        },
+        400
+      );
     }
 
     switch (tokenDetails.data.accessToken) {
@@ -210,7 +275,6 @@ app.patch("/api/v1/set-accessToken", AuthMiddleware, async (c) => {
             UberAccessToken: tokenDetails.data.accessToken,
           },
         });
-
         break;
 
       case "OLA":
@@ -222,23 +286,31 @@ app.patch("/api/v1/set-accessToken", AuthMiddleware, async (c) => {
             OlaAccessToken: tokenDetails.data.accessToken,
           },
         });
-
         break;
 
       default:
-        return c.json({
-          message: "Invalid access token",
-        });
+        return c.json(
+          {
+            message: "Invalid access token",
+          },
+          400
+        );
     }
 
-    return c.json({
-      message: "Token updated successfully",
-    });
+    return c.json(
+      {
+        message: "Token updated successfully",
+      },
+      200
+    );
   } catch (error) {
     console.error("An error occurred", error);
-    return c.json({
-      message: "An error occurred",
-    });
+    return c.json(
+      {
+        message: "An error occurred while updating token",
+      },
+      500
+    );
   }
 });
 
@@ -252,6 +324,16 @@ app.patch("/api/v1/unlink-accessToken", AuthMiddleware, async (c) => {
 
     const id = c.get("id");
 
+    // check if id is recieved
+    if (!id) {
+      return c.json(
+        {
+          message: "User ID not found",
+        },
+        400
+      );
+    }
+
     switch (body.fieldToNull) {
       case "OLA":
         await prisma.user.update({
@@ -262,7 +344,6 @@ app.patch("/api/v1/unlink-accessToken", AuthMiddleware, async (c) => {
             OlaAccessToken: "",
           },
         });
-
         break;
 
       case "UBER":
@@ -274,24 +355,32 @@ app.patch("/api/v1/unlink-accessToken", AuthMiddleware, async (c) => {
             UberAccessToken: "",
           },
         });
-
         break;
 
       default:
-        return c.json({
-          message: "Can't find the field" + body.fieldToNull,
-        });
+        return c.json(
+          {
+            message: "Can't find the field" + body.fieldToNull,
+          },
+          400
+        );
     }
 
-    return c.json({
-      message: "Unlinked successfully: " + body.fieldToNull,
-    });
+    return c.json(
+      {
+        message: "Unlinked successfully: " + body.fieldToNull,
+      },
+      200
+    );
   } catch (error) {
     console.error("An error occurred while unlinking", error);
 
-    return c.json({
-      message: "An error occurred while unlinking",
-    });
+    return c.json(
+      {
+        message: "An error occurred while unlinking",
+      },
+      500
+    );
   }
 });
 
@@ -301,23 +390,30 @@ app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
     let service_type = c.req.query("service_type");
     const kv = c.env.kv;
     const id = c.get("id");
+
     if (service_type === "local") {
       service_type = "p2p";
     }
 
     if (!category) {
-      return c.json({
-        message: "Category is missing",
-      });
+      return c.json(
+        {
+          message: "Category is missing",
+        },
+        400
+      );
     }
-    const body = await c.req.json();
 
+    const body = await c.req.json();
     const geoLocation = CoordinatesSchema.safeParse(body);
 
     if (!geoLocation.success) {
-      return c.json({
-        message: "Invalid coordinates",
-      });
+      return c.json(
+        {
+          message: "Invalid coordinates",
+        },
+        400
+      );
     }
 
     const response = await fetch(
@@ -337,15 +433,21 @@ app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
 
     if ("code" in data) {
       if (data.code === "INVALID_CITY") {
-        return c.json({
-          message: "Ola do not serve in this city",
-        });
+        return c.json(
+          {
+            message: "Ola do not serve in this city",
+          },
+          400
+        );
       }
 
       if (data.code === "INVALID_CITY_CAR_CATEGORY") {
-        return c.json({
-          message: "No service available for this category in this city",
-        });
+        return c.json(
+          {
+            message: "No service available for this category in this city",
+          },
+          400
+        );
       }
     } else {
       const rideDetails: RideDetails = {
@@ -370,15 +472,21 @@ app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
         metadata: rideDetails,
       });
 
-      return c.json({
-        message: "Ola ride details fetched successfully",
-        data: rideDetails,
-      });
+      return c.json(
+        {
+          message: "Ola ride details fetched successfully",
+          data: rideDetails,
+        },
+        200
+      );
     }
   } catch (error) {
     console.error("An error occurred while fetching Ola ride details", error);
-    return c.json({
-      message: "An error occurred while fetching Ola ride details",
-    });
+    return c.json(
+      {
+        message: "An error occurred while fetching Ola ride details",
+      },
+      500
+    );
   }
 });
