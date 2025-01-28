@@ -12,3 +12,10 @@ export const AccessTokenSchema = z.object({
 });
 
 export type AccessTokenSchemaType = z.infer<typeof AccessTokenSchema>;
+
+export const CoordinatesSchema = z.object({
+  pickup_lat: z.number().min(-90).max(90),
+  pickup_long: z.number().min(-180).max(180),
+  drop_lat: z.number().min(-90).max(90),
+  drop_long: z.number().min(-180).max(180),
+});

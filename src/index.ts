@@ -1,10 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import { decode, sign, verify } from "hono/jwt";
 import { Context, Hono, Next } from "hono";
-import { AccessTokenSchema, SignUpSchema } from "./zod-types/zodTypes";
+import {
+  AccessTokenSchema,
+  CoordinatesSchema,
+  SignUpSchema,
+} from "./zod-types/zodTypes";
 import { generateOtp } from "./utils/otpUtils";
 import { cors } from "hono/cors";
 import { JwtTokenExpired } from "hono/utils/jwt/types";
+import { string } from "zod";
+import { OlaResponse, RideDetails } from "./types/type";
 
 interface MyContext extends Context {
   id?: string;
@@ -15,6 +21,7 @@ const app = new Hono<{
     DATABASE_URL: string;
     JWT_SECRET: string;
     kv: KVNamespace;
+    X_APP_TOKEN: string;
   };
   Context: MyContext;
 }>();
@@ -284,6 +291,66 @@ app.patch("/api/v1/unlink-accessToken", AuthMiddleware, async (c) => {
 
     return c.json({
       message: "An error occurred while unlinking",
+    });
+  }
+});
+
+app.post("/api/v1/book-now/local/ola", AuthMiddleware, async (c) => {
+  try {
+    const category = c.req.query("category");
+    let service_type = c.req.query("service_type");
+
+    if (service_type === "local") {
+      service_type = "p2p";
+    }
+
+    if (!category) {
+      return c.json({
+        message: "Category is missing",
+      });
+    }
+    const body = await c.req.json();
+
+    const geoLocation = CoordinatesSchema.safeParse(body);
+
+    if (!geoLocation.success) {
+      return c.json({
+        message: "Invalid coordinates",
+      });
+    }
+
+    const response = await fetch(
+      `https://devapi.olacabs.com/v1/products?pickup_lat=${geoLocation.data.pickup_lat}&pickup_lng=${geoLocation.data.pickup_long}&drop_lat=${geoLocation.data.drop_lat}&drop_lng=${geoLocation.data.drop_long}&service_type=${service_type}&category=${category}`,
+      {
+        method: "GET",
+
+        headers: {
+          Authorization: `Bearer ${c.env.X_APP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const data: OlaResponse = await response.json();
+
+    const rideDetails: RideDetails = {
+      category: "",
+      eta: 0,
+      fare: 0,
+    };
+
+    rideDetails["category"] = data.ride_estimate[0].category;
+    rideDetails["eta"] = data.categories[0].eta;
+    rideDetails["fare"] = data.ride_estimate[0].upfront.fare;
+
+    return c.json({
+      message: "Ola ride details fetched successfully",
+      data: rideDetails,
+    });
+  } catch (error) {
+    console.error("An error occurred while fetching Ola ride details", error);
+    return c.json({
+      message: "An error occurred while fetching Ola ride details",
     });
   }
 });
