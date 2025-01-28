@@ -34,7 +34,6 @@ model Rides {
   rideId String 
   pickupLocation String
   dropLocation String
-  platform String
   fare Int
   dateAndTime DateTime
   rideStatus RideStatus @default(Upcoming)
