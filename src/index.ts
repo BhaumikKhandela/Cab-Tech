@@ -151,7 +151,7 @@ app.post("/api/v1/generate-otp", async (c) => {
     if (!user) {
       return c.json(
         {
-          message: "User not found",
+          message: "User not found, please sign up first",
         },
         404
       );
@@ -265,7 +265,8 @@ app.patch("/api/v1/set-accessToken", AuthMiddleware, async (c) => {
       );
     }
 
-    switch (tokenDetails.data.accessToken) {
+    // tokenDetails.data.accessToken --> tokenDetails.data.name
+    switch (tokenDetails.data.name) {
       case "UBER":
         await prisma.user.update({
           where: {
