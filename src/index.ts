@@ -491,3 +491,5 @@ app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
     );
   }
 });
+
+export default app;
