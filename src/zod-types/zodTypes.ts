@@ -14,6 +14,28 @@ export const SignUpSchema = z.object({
     .regex(/^\d{10}$/, { message: "Phone number must be exactly 10 digits" }),
 });
 
+export const CategorySchema = z.enum([
+  "micro",
+  "mini",
+  "share",
+  "prime",
+  "suv",
+  "prime_play",
+  "auto",
+  "lux",
+  "rental",
+  "outstation",
+  "sedan",
+  "exec",
+  "bike",
+  "erick",
+  "kp",
+  "electric_vehicle",
+  "cool_cab",
+]);
+
+export const ServiceTypeSchema = z.enum(["p2p", "rental", "outstation"]);
+
 export const AccessTokenSchema = z.object({
   accessToken: z.string(),
   name: z.enum(["OLA", "UBER", "MERUCABS", "RAPIDO"]),

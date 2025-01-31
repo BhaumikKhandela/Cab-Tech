@@ -4,7 +4,9 @@ import { decode, sign, verify } from "hono/jwt";
 import { Context, Hono, Next } from "hono";
 import {
   AccessTokenSchema,
+  CategorySchema,
   CoordinatesSchema,
+  ServiceTypeSchema,
   SignUpSchema,
 } from "./zod-types/zodTypes";
 import { generateOtp } from "./utils/otpUtils";
@@ -388,23 +390,27 @@ app.patch("/api/v1/unlink-accessToken", AuthMiddleware, async (c) => {
 
 app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
   try {
-    const category = c.req.query("category");
-    let service_type = c.req.query("service_type");
-    const kv = c.env.kv;
-    const id = c.get("id");
+    const service_type_schema_result = ServiceTypeSchema.safeParse(
+      c.req.query("service_type")
+    );
 
-    if (service_type === "local") {
-      service_type = "p2p";
+    if (!service_type_schema_result.success) {
+      return c.json({
+        message: "Invalid service type",
+      });
     }
 
-    if (!category) {
-      return c.json(
-        {
-          message: "Category is missing",
-        },
-        400
-      );
+    const category_schema_result = CategorySchema.safeParse(
+      c.req.query("category")
+    );
+
+    if (!category_schema_result.success) {
+      return c.json({
+        message: "Invalid category",
+      });
     }
+    const category = category_schema_result.data;
+    const service_type = service_type_schema_result.data;
 
     const body = await c.req.json();
     const geoLocation = CoordinatesSchema.safeParse(body);
@@ -416,6 +422,22 @@ app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
         },
         400
       );
+    }
+
+    const kv = c.env.kv;
+    const id = c.get("id");
+
+    const cachedResponse: {
+      value: string | Object | ArrayBuffer | ReadableStream | null;
+      metadata: string | null;
+    } = await kv.getWithMetadata(id, "json");
+    if (cachedResponse.value && cachedResponse.metadata) {
+      console.log(cachedResponse.value);
+
+      return c.json({
+        message: "Booked successfully",
+        data: cachedResponse.value,
+      });
     }
 
     const response = await fetch(
