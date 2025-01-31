@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client/edge";
+import { withAccelerate } from "@prisma/extension-accelerate";
 import { decode, sign, verify } from "hono/jwt";
 import { Context, Hono, Next } from "hono";
 import {
@@ -78,7 +79,7 @@ app.post("/api/v1/signup", async (c) => {
   try {
     const prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
-    });
+    }).$extends(withAccelerate());
 
     const kv = c.env.kv;
 
@@ -138,7 +139,7 @@ app.post("/api/v1/generate-otp", async (c) => {
   try {
     const prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
-    });
+    }).$extends(withAccelerate());
 
     const body = await c.req.json();
 
@@ -184,7 +185,7 @@ app.post("/api/v1/verify-otp", async (c) => {
   try {
     const prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
-    });
+    }).$extends(withAccelerate());
 
     const body = await c.req.json();
 
@@ -241,7 +242,7 @@ app.patch("/api/v1/set-accessToken", AuthMiddleware, async (c) => {
   try {
     const prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
-    });
+    }).$extends(withAccelerate());
 
     const body = await c.req.json();
     const id = c.get("id");
@@ -319,7 +320,7 @@ app.patch("/api/v1/unlink-accessToken", AuthMiddleware, async (c) => {
   try {
     const prisma = new PrismaClient({
       datasourceUrl: c.env.DATABASE_URL,
-    });
+    }).$extends(withAccelerate());
 
     const body = await c.req.json();
 
