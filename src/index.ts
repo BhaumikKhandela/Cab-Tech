@@ -13,7 +13,7 @@ import { generateOtp } from "./utils/otpUtils";
 import { cors } from "hono/cors";
 import { JwtTokenExpired } from "hono/utils/jwt/types";
 import { string } from "zod";
-import { OlaResponse, RideDetails } from "./types/type";
+import { KVGetWithMetaData, OlaResponse, RideDetails } from "./types/type";
 
 interface MyContext extends Context {
   id?: string;
@@ -427,17 +427,33 @@ app.post("/api/v1/book-now/ola", AuthMiddleware, async (c) => {
     const kv = c.env.kv;
     const id = c.get("id");
 
-    const cachedResponse: {
-      value: string | Object | ArrayBuffer | ReadableStream | null;
-      metadata: string | null;
-    } = await kv.getWithMetadata(id, "json");
-    if (cachedResponse.value && cachedResponse.metadata) {
-      console.log(cachedResponse.value);
+    const cachedResponse: KVGetWithMetaData = await kv.getWithMetadata(
+      id,
+      "json"
+    );
 
-      return c.json({
-        message: "Booked successfully",
-        data: cachedResponse.value,
-      });
+    if (cachedResponse.value && cachedResponse.metadata) {
+      const cachedData = cachedResponse.value as {
+        pickup_lat: number;
+        pickup_long: number;
+        drop_lat: number;
+        drop_long: number;
+        service_type: string;
+        category: string;
+      };
+      if (
+        cachedData.pickup_lat === geoLocation.data.pickup_lat &&
+        cachedData.pickup_long === geoLocation.data.drop_long &&
+        cachedData.drop_lat === geoLocation.data.drop_lat &&
+        cachedData.drop_long === geoLocation.data.drop_long &&
+        cachedData.service_type === service_type &&
+        cachedData.category === category
+      ) {
+        return c.json({
+          message: "Cached response",
+          data: cachedResponse.metadata,
+        });
+      }
     }
 
     const response = await fetch(

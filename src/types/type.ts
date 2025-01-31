@@ -15,3 +15,8 @@ export interface OlaResponse {
     };
   }[];
 }
+
+export interface KVGetWithMetaData {
+  value: string | Object | ArrayBuffer | ReadableStream | null;
+  metadata: Object | null;
+}
